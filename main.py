@@ -26,16 +26,23 @@ except ImportError:
 NVIDIA_BASE_URL = "https://integrate.api.nvidia.com/v1"
 DEFAULT_MODEL = "meta/llama-3.1-8b-instruct"
 
-SMTP_HOST      = "smtp.gmail.com"
-SMTP_PORT      = 587
-SMTP_USERNAME  = os.environ.get("SMTP_USERNAME", "chavdajay510@gmail.com")
-SMTP_PASSWORD  = os.environ.get("SMTP_PASSWORD", "sbkbiounwrpoaphd")
-FROM_EMAIL     = os.environ.get("FROM_EMAIL",    "chavdajay510@gmail.com")
-#ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", "info@saubhagyam.com")
-ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", "chavdajay510@gmail.com")
-WHATSAPP_NO    = "+919998978397"
-SENDGRID_API_KEY = os.environ.get("SENDGRID_API_KEY", "")
-
+# SMTP_HOST      = "smtp.gmail.com"
+# SMTP_PORT      = 587
+# SMTP_USERNAME  = os.environ.get("SMTP_USERNAME", "chavdajay510@gmail.com")
+# SMTP_PASSWORD  = os.environ.get("SMTP_PASSWORD", "sbkbiounwrpoaphd")
+# FROM_EMAIL     = os.environ.get("FROM_EMAIL", "chavdajay510@gmail.com")
+# #ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", "info@saubhagyam.com")
+# ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", "chavdajay510@gmail.com")
+# WHATSAPP_NO    = "+919998978397"
+# SENDGRID_API_KEY = os.environ.get("SENDGRID_API_KEY", "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")
+SMTP_HOST        = "smtp.gmail.com"
+SMTP_PORT        = 587
+SMTP_USERNAME    = "chavdajay510@gmail.com"
+SMTP_PASSWORD    = "sbkbiounwrpoaphd"
+FROM_EMAIL       = "chavdajay510@gmail.com"
+ADMIN_EMAIL      = "chavdajay510@gmail.com"
+WHATSAPP_NO      = "+919998978397"
+SENDGRID_API_KEY = "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"
 # ══════════════════════════════════════════════════════════════
 #   SYSTEM PROMPT
 # ══════════════════════════════════════════════════════════════
@@ -165,7 +172,10 @@ RULES:
 # ══════════════════════════════════════════════════════════════
 def send_email(to_email: str, subject: str, body: str, is_html: bool = False):
     try:
-        import urllib.request, urllib.error
+        import urllib.request, urllib.error, ssl
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
         data = json.dumps({
             "personalizations": [{"to": [{"email": to_email}]}],
             "from": {"email": FROM_EMAIL, "name": "Saubhagyam AI"},
@@ -181,7 +191,7 @@ def send_email(to_email: str, subject: str, body: str, is_html: bool = False):
             },
             method="POST"
         )
-        with urllib.request.urlopen(req, timeout=30) as response:
+        with urllib.request.urlopen(req, timeout=30, context=ctx) as response:
             print(f"[EMAIL OK] {to_email} — Status: {response.status}")
     except urllib.error.HTTPError as e:
         print(f"[EMAIL FAIL HTTP] {e.code} — {e.read().decode()}")
@@ -319,7 +329,7 @@ class BookingStore:
 
     def save(self):
         with open(self.path, "w") as f:
-            json.dump([b.dict() for b in self.bookings], f, indent=2)
+            json.dump([b.model_dump() for b in self.bookings], f, indent=2)
 
     def add(self, b: Booking):
         self._load(); self.bookings.append(b); self.save()
