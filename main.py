@@ -165,7 +165,7 @@ RULES:
 # ══════════════════════════════════════════════════════════════
 def send_email(to_email: str, subject: str, body: str, is_html: bool = False):
     try:
-        import urllib.request
+        import urllib.request, urllib.error
         data = json.dumps({
             "personalizations": [{"to": [{"email": to_email}]}],
             "from": {"email": FROM_EMAIL, "name": "Saubhagyam AI"},
@@ -181,8 +181,10 @@ def send_email(to_email: str, subject: str, body: str, is_html: bool = False):
             },
             method="POST"
         )
-        urllib.request.urlopen(req)
-        print(f"[EMAIL OK] {to_email}")
+        with urllib.request.urlopen(req, timeout=30) as response:
+            print(f"[EMAIL OK] {to_email} — Status: {response.status}")
+    except urllib.error.HTTPError as e:
+        print(f"[EMAIL FAIL HTTP] {e.code} — {e.read().decode()}")
     except Exception as e:
         print(f"[EMAIL FAIL] {e}")
 # ══════════════════════════════════════════════════════════════
