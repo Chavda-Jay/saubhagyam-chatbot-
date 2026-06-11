@@ -34,6 +34,7 @@ FROM_EMAIL     = os.environ.get("FROM_EMAIL",    "chavdajay510@gmail.com")
 #ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", "info@saubhagyam.com")
 ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", "chavdajay510@gmail.com")
 WHATSAPP_NO    = "+919998978397"
+SENDGRID_API_KEY = os.environ.get("SENDGRID_API_KEY", "")
 
 # ══════════════════════════════════════════════════════════════
 #   SYSTEM PROMPT
@@ -164,22 +165,26 @@ RULES:
 # ══════════════════════════════════════════════════════════════
 def send_email(to_email: str, subject: str, body: str, is_html: bool = False):
     try:
-        msg = MIMEMultipart()
-        msg['From'] = FROM_EMAIL
-        msg['To'] = to_email
-        msg['Subject'] = subject
-        msg.attach(MIMEText(body, 'html' if is_html else 'plain'))
-        s = smtplib.SMTP(SMTP_HOST, SMTP_PORT)
-        s.ehlo()
-        s.starttls()
-        s.ehlo()
-        s.login(SMTP_USERNAME, SMTP_PASSWORD)
-        s.sendmail(FROM_EMAIL, to_email, msg.as_string())
-        s.quit()
+        import urllib.request
+        data = json.dumps({
+            "personalizations": [{"to": [{"email": to_email}]}],
+            "from": {"email": FROM_EMAIL, "name": "Saubhagyam AI"},
+            "subject": subject,
+            "content": [{"type": "text/plain", "value": body}]
+        }).encode("utf-8")
+        req = urllib.request.Request(
+            "https://api.sendgrid.com/v3/mail/send",
+            data=data,
+            headers={
+                "Authorization": f"Bearer {SENDGRID_API_KEY}",
+                "Content-Type": "application/json"
+            },
+            method="POST"
+        )
+        urllib.request.urlopen(req)
         print(f"[EMAIL OK] {to_email}")
     except Exception as e:
         print(f"[EMAIL FAIL] {e}")
-
 # ══════════════════════════════════════════════════════════════
 #   SAFETY SCANNER
 # ══════════════════════════════════════════════════════════════
