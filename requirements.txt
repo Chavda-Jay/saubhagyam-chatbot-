@@ -1,0 +1,7 @@
+openai>=1.30.0
+fastapi
+uvicorn
+python-dotenv
+pydantic
+python-multipart
+aiofiles

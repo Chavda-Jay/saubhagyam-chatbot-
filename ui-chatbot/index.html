@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Saubhagyam AI Assistant</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+
+<body>
+
+    <!-- ── Floating Launch Button ───────────────────────── -->
+    <div id="chatLauncher" class="chat-launcher">
+        <i class="fas fa-comment-dots"></i>
+        <div class="pulse-ring"></div>
+    </div>
+
+    <!-- ── Chatbot Widget ────────────────────────────────── -->
+    <div id="chatbotWidget" class="chatbot-container hidden">
+
+        <!-- Header -->
+        <header class="chat-header">
+            <div class="header-left">
+                <div class="agent-avatar">
+                    <img src="https://ui-avatars.com/api/?name=S+A&background=00a651&color=fff&size=40" alt="SA">
+                    <span class="online-dot"></span>
+                </div>
+                <div class="agent-info">
+                    <h3>Saubhagyam AI</h3>
+                    <p><span class="live-dot"></span> Live • Replies instantly</p>
+                </div>
+            </div>
+            <div class="header-right">
+                <button class="hdr-btn" id="humanBtn" title="Talk to Human">
+                    <i class="fas fa-user-headset"></i>
+                </button>
+                <button class="hdr-btn" id="clearBtn" title="Clear Chat">
+                    <i class="fas fa-trash-alt"></i>
+                </button>
+                <button class="hdr-btn" id="closeBtn" title="Close">
+                    <i class="fas fa-minus"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- Chat Window -->
+        <main class="chat-window" id="chatWindow">
+            <div class="welcome-bubble">
+                <p>👋 Welcome to <strong>SAUBHAGYAM</strong>! We build AI, Blockchain,
+                    Crypto, Cybersecurity, Web & Mobile solutions for businesses worldwide.
+                    How can I help you today?</p>
+            </div>
+
+            <!-- Quick Action Chips -->
+            <div class="quick-chips" id="quickChips">
+                <button class="chip" data-query="Tell me about your AI services">🤖 AI Services</button>
+                <button class="chip" data-query="Tell me about Blockchain services">⛓️ Blockchain</button>
+                <button class="chip" data-query="Tell me about Cryptocurrency services">🪙 Crypto</button>
+                <button class="chip" data-query="Tell me about Cybersecurity services">🛡️ Cybersecurity</button>
+                <button class="chip" data-query="Tell me about Algo Trading services">📈 Algo Trading</button>
+                <button class="chip" data-query="Tell me about Web Development services">💻 Web Dev</button>
+                <button class="chip" data-query="Tell me about Mobile App Development">📱 Mobile Apps</button>
+                <button class="chip" data-query="I want to hire a dedicated developer">👨‍💻 Hire Developer</button>
+                <button class="chip chip-green" data-query="BOOK_APPOINTMENT">📅 Book Appointment</button>
+                <button class="chip" data-query="I want to manage or cancel my booking">⚙️ Manage Booking</button>
+            </div>
+        </main>
+
+        <!-- Typing Indicator -->
+        <div id="typingIndicator" class="typing-indicator hidden">
+            <span></span><span></span><span></span>
+        </div>
+
+        <!-- Image Preview Bar (shown when image selected) -->
+        <div id="imagePreviewBar" class="image-preview-bar hidden">
+            <img id="imageThumb" src="" alt="preview">
+            <span id="imageFileName">image.jpg</span>
+            <button id="removeImage" title="Remove"><i class="fas fa-times"></i></button>
+        </div>
+
+        <!-- Input Footer -->
+        <footer class="chat-footer">
+            <div class="input-row">
+                <div id="emojiPicker" class="emoji-picker hidden"></div>
+                <input type="text" id="userInput" placeholder="Type a message or press 🎤..." autocomplete="off">
+                <div class="input-actions">
+                    <button class="icon-btn" id="micBtn" title="Voice Input"><i class="fas fa-microphone"></i></button>
+                    <button class="icon-btn" id="attachBtn" title="Attach Image"><i
+                            class="fas fa-paperclip"></i></button>
+                    <button class="icon-btn" id="emojiBtn" title="Emoji"><i class="far fa-smile"></i></button>
+                    <button class="icon-btn send-btn" id="sendBtn" title="Send"><i
+                            class="fas fa-paper-plane"></i></button>
+                </div>
+                <!-- Hidden file input -->
+                <input type="file" id="fileInput" accept="image/*" style="display:none">
+            </div>
+        </footer>
+
+        <!-- ══════════════════════════════════════════════════
+             BOOKING MODAL — Professional Time Slot Picker
+             ══════════════════════════════════════════════════ -->
+        <div id="bookingModal" class="overlay-modal hidden">
+            <div class="modal-card modal-card-booking">
+                <div class="modal-head">
+                    <h3>📅 Book an Appointment</h3>
+                    <button class="modal-close" id="closeBookingModal"><i class="fas fa-times"></i></button>
+                </div>
+                <p class="modal-sub">Monday – Friday • Select your preferred slot</p>
+                <div class="modal-form modal-form-scroll">
+                    <input type="text" id="bName" placeholder="Full Name *" required>
+                    <input type="email" id="bEmail" placeholder="Email Address *" required>
+                    <input type="tel" id="bPhone" placeholder="Phone Number *" required>
+                    <select id="bService">
+                        <option value="">Select Service of Interest *</option>
+                        <optgroup label="Artificial Intelligence">
+                            <option>AI Development</option>
+                            <option>AI Agent Development</option>
+                            <option>AI Chatbot Development</option>
+                            <option>Generative AI Development</option>
+                            <option>LLM Development</option>
+                            <option>Machine Learning</option>
+                            <option>Computer Vision</option>
+                            <option>NLP Development</option>
+                        </optgroup>
+                        <optgroup label="Blockchain">
+                            <option>Blockchain Development</option>
+                            <option>Smart Contract Development</option>
+                            <option>Solana Blockchain</option>
+                            <option>Blockchain Audit</option>
+                        </optgroup>
+                        <optgroup label="Cryptocurrency">
+                            <option>Cryptocurrency Development</option>
+                            <option>Token Development</option>
+                            <option>P2P Exchange Development</option>
+                            <option>Crypto Wallet Development</option>
+                        </optgroup>
+                        <optgroup label="Cybersecurity">
+                            <option>Cyber Security Solutions</option>
+                            <option>Digital Forensics</option>
+                            <option>Zero Trust</option>
+                            <option>Application Security</option>
+                        </optgroup>
+                        <optgroup label="Algo Trading">
+                            <option>Algo Trading Development</option>
+                            <option>Forex Algo Development</option>
+                        </optgroup>
+                        <optgroup label="Web & Mobile">
+                            <option>Web Development</option>
+                            <option>Mobile App Development</option>
+                            <option>UI/UX Design</option>
+                            <option>eCommerce Development</option>
+                        </optgroup>
+                        <option value="General Inquiry">General Inquiry</option>
+                    </select>
+
+                    <!-- Date Picker with label -->
+                    <div class="field-group">
+                        <label class="field-label"><i class="fas fa-calendar-alt"></i> Preferred Date</label>
+                        <input type="date" id="bDate" required title="Monday to Friday only">
+                    </div>
+
+                    <!-- Time Slot Picker -->
+                    <div class="field-group">
+                        <label class="field-label"><i class="fas fa-clock"></i> Select Time Slot</label>
+                        <div class="slot-section">
+                            <span class="slot-label">🌅 Morning  (11 AM – 1 PM)</span>
+                            <div class="slot-grid" id="bMorningSlots">
+                                <button type="button" class="slot-btn" data-time="11:00 AM">11:00 AM</button>
+                                <button type="button" class="slot-btn" data-time="11:30 AM">11:30 AM</button>
+                                <button type="button" class="slot-btn" data-time="12:00 PM">12:00 PM</button>
+                                <button type="button" class="slot-btn" data-time="12:30 PM">12:30 PM</button>
+                                <button type="button" class="slot-btn" data-time="1:00 PM">1:00 PM</button>
+                            </div>
+                        </div>
+                        <div class="slot-section">
+                            <span class="slot-label">🌇 Afternoon  (3 PM – 6 PM)</span>
+                            <div class="slot-grid" id="bAfternoonSlots">
+                                <button type="button" class="slot-btn" data-time="3:00 PM">3:00 PM</button>
+                                <button type="button" class="slot-btn" data-time="3:30 PM">3:30 PM</button>
+                                <button type="button" class="slot-btn" data-time="4:00 PM">4:00 PM</button>
+                                <button type="button" class="slot-btn" data-time="4:30 PM">4:30 PM</button>
+                                <button type="button" class="slot-btn" data-time="5:00 PM">5:00 PM</button>
+                                <button type="button" class="slot-btn" data-time="5:30 PM">5:30 PM</button>
+                                <button type="button" class="slot-btn" data-time="6:00 PM">6:00 PM</button>
+                            </div>
+                        </div>
+                        <input type="hidden" id="bSelectedTime" value="">
+                    </div>
+
+                    <button class="submit-btn" id="submitBookingBtn">
+                        <i class="fas fa-calendar-check"></i> Submit Request
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ══════════════════════════════════════════════════
+             RESCHEDULE MODAL — Professional Time Slot Picker
+             ══════════════════════════════════════════════════ -->
+        <div id="rescheduleModal" class="overlay-modal hidden">
+            <div class="modal-card modal-card-booking">
+                <div class="modal-head">
+                    <h3>🔄 Reschedule Appointment</h3>
+                    <button class="modal-close" id="closeRescheduleModal"><i class="fas fa-times"></i></button>
+                </div>
+                <p class="modal-sub">Select your new preferred date and time</p>
+                <div class="modal-form modal-form-scroll">
+                    <input type="hidden" id="rescheduleBookingId">
+
+                    <!-- Date Picker with label -->
+                    <div class="field-group">
+                        <label class="field-label"><i class="fas fa-calendar-alt"></i> New Date</label>
+                        <input type="date" id="rDate" required>
+                    </div>
+
+                    <!-- Time Slot Picker -->
+                    <div class="field-group">
+                        <label class="field-label"><i class="fas fa-clock"></i> Select Time Slot</label>
+                        <div class="slot-section">
+                            <span class="slot-label">🌅 Morning  (11 AM – 1 PM)</span>
+                            <div class="slot-grid" id="rMorningSlots">
+                                <button type="button" class="slot-btn" data-time="11:00 AM">11:00 AM</button>
+                                <button type="button" class="slot-btn" data-time="11:30 AM">11:30 AM</button>
+                                <button type="button" class="slot-btn" data-time="12:00 PM">12:00 PM</button>
+                                <button type="button" class="slot-btn" data-time="12:30 PM">12:30 PM</button>
+                                <button type="button" class="slot-btn" data-time="1:00 PM">1:00 PM</button>
+                            </div>
+                        </div>
+                        <div class="slot-section">
+                            <span class="slot-label">🌇 Afternoon  (3 PM – 6 PM)</span>
+                            <div class="slot-grid" id="rAfternoonSlots">
+                                <button type="button" class="slot-btn" data-time="3:00 PM">3:00 PM</button>
+                                <button type="button" class="slot-btn" data-time="3:30 PM">3:30 PM</button>
+                                <button type="button" class="slot-btn" data-time="4:00 PM">4:00 PM</button>
+                                <button type="button" class="slot-btn" data-time="4:30 PM">4:30 PM</button>
+                                <button type="button" class="slot-btn" data-time="5:00 PM">5:00 PM</button>
+                                <button type="button" class="slot-btn" data-time="5:30 PM">5:30 PM</button>
+                                <button type="button" class="slot-btn" data-time="6:00 PM">6:00 PM</button>
+                            </div>
+                        </div>
+                        <input type="hidden" id="rSelectedTime" value="">
+                    </div>
+
+                    <button class="submit-btn" id="submitRescheduleBtn">
+                        <i class="fas fa-check"></i> Submit Reschedule
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Live Agent Modal ───────────────────────────── -->
+        <div id="handoffModal" class="overlay-modal hidden">
+            <div class="modal-card">
+                <div class="modal-head">
+                    <h3>👤 Talk to a Human</h3>
+                    <button class="modal-close" id="closeHandoffModal"><i class="fas fa-times"></i></button>
+                </div>
+                <p class="modal-sub">Our team will contact you within 15 minutes</p>
+                <div class="modal-form">
+                    <input type="text" id="hName" placeholder="Your Name *" required>
+                    <input type="text" id="hContact" placeholder="Email or WhatsApp Number *" required>
+                    <textarea id="hMessage" rows="3" placeholder="Brief message (optional)"></textarea>
+                    <button class="submit-btn" id="submitHandoffBtn">
+                        <i class="fas fa-headset"></i> Connect Me Now
+                    </button>
+                </div>
+            </div>
+        </div>
+
+    </div><!-- end chatbotWidget -->
+
+    <script src="app.js"></script>
+</body>
+
+</html>
