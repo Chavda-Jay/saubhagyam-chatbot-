@@ -179,83 +179,112 @@ document.addEventListener('DOMContentLoaded', () => {
         typingIndicator.classList.remove('hidden');
         scrollBottom();
 
+        // try {
+        //     // Build FormData (supports text + image)
+        //     const formData = new FormData();
+        //     formData.append('message', text || 'I sent an image, please analyze it.');
+        //     if (imageFile) formData.append('image', imageFile);
+
+        //     // Use streaming endpoint for real-time word-by-word display
+        //     const response = await fetch('/chat/stream', {
+        //         method: 'POST',
+        //         body: formData
+        //     });
+
+        //     typingIndicator.classList.add('hidden');
+
+        //     if (!response.ok) {
+        //         // Fallback to non-streaming if stream endpoint fails
+        //         const fallbackRes = await fetch('/chat', { method: 'POST', body: formData });
+        //         const data = await fallbackRes.json();
+        //         if (data.action === 'MANAGE_BOOKINGS') {
+        //             renderBookingCards(data.bookings);
+        //         } else if (data.reply) {
+        //             addMessage(data.reply, 'ai');
+        //         }
+        //         addFollowChips();
+        //         return;
+        //     }
+
+        //     // Read SSE stream and display tokens word by word
+        //     const reader = response.body.getReader();
+        //     const decoder = new TextDecoder();
+        //     const { element, update } = addStreamingMessage();
+        //     let fullReply = '';
+
+        //     while (true) {
+        //         const { done, value } = await reader.read();
+        //         if (done) break;
+
+        //         const chunk = decoder.decode(value, { stream: true });
+        //         const lines = chunk.split('\n');
+
+        //         for (const line of lines) {
+        //             if (line.startsWith('data: ')) {
+        //                 const data = line.slice(6).trim();
+        //                 if (data === '[DONE]') break;
+        //                 try {
+        //                     const parsed = JSON.parse(data);
+        //                     if (parsed.token) {
+        //                         fullReply += parsed.token;
+        //                         update(fullReply);
+        //                         scrollBottom();
+        //                     }
+        //                 } catch (e) {
+        //                     // Skip malformed JSON
+        //                 }
+        //             }
+        //         }
+
+        //     // Stream done — remove blinking cursor, render final formatted reply
+        //     element.innerHTML = formatAI(fullReply);
+        //     }
+
+        //     // Check if reply contains booking actions — handle via non-stream
+        //     if (fullReply.includes('[LOOKUP_BOOKING]') ||
+        //         fullReply.includes('[SUBMIT_BOOKING]') ||
+        //         fullReply.includes('[HANDOFF_REQUESTED]')) {
+        //         // Re-send via non-streaming endpoint for server-side processing
+        //         element.remove();
+        //         const fd2 = new FormData();
+        //         fd2.append('message', text || 'I sent an image, please analyze it.');
+        //         if (imageFile) fd2.append('image', imageFile);
+        //         const res2 = await fetch('/chat', { method: 'POST', body: fd2 });
+        //         const data2 = await res2.json();
+        //         if (data2.action === 'MANAGE_BOOKINGS') {
+        //             renderBookingCards(data2.bookings);
+        //         } else if (data2.reply) {
+        //             addMessage(data2.reply, 'ai');
+        //         }
+        //     }
+
+        //     addFollowChips();
+        //     saveChatToStorage();
+
+        // } catch (err) {
+        //     typingIndicator.classList.add('hidden');
+        //     addMessage('Could not connect to the server. Make sure the backend is running.', 'ai');
+        //     console.error(err);
+        // }
         try {
             // Build FormData (supports text + image)
             const formData = new FormData();
             formData.append('message', text || 'I sent an image, please analyze it.');
             if (imageFile) formData.append('image', imageFile);
 
-            // Use streaming endpoint for real-time word-by-word display
-            const response = await fetch('/chat/stream', {
+            const response = await fetch('/chat', {
                 method: 'POST',
                 body: formData
             });
 
             typingIndicator.classList.add('hidden');
 
-            if (!response.ok) {
-                // Fallback to non-streaming if stream endpoint fails
-                const fallbackRes = await fetch('/chat', { method: 'POST', body: formData });
-                const data = await fallbackRes.json();
-                if (data.action === 'MANAGE_BOOKINGS') {
-                    renderBookingCards(data.bookings);
-                } else if (data.reply) {
-                    addMessage(data.reply, 'ai');
-                }
-                addFollowChips();
-                return;
-            }
+            const data = await response.json();
 
-            // Read SSE stream and display tokens word by word
-            const reader = response.body.getReader();
-            const decoder = new TextDecoder();
-            const { element, update } = addStreamingMessage();
-            let fullReply = '';
-
-            while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
-
-                const chunk = decoder.decode(value, { stream: true });
-                const lines = chunk.split('\n');
-
-                for (const line of lines) {
-                    if (line.startsWith('data: ')) {
-                        const data = line.slice(6).trim();
-                        if (data === '[DONE]') break;
-                        try {
-                            const parsed = JSON.parse(data);
-                            if (parsed.token) {
-                                fullReply += parsed.token;
-                                update(fullReply);
-                                scrollBottom();
-                            }
-                        } catch (e) {
-                            // Skip malformed JSON
-                        }
-                    }
-                }
-
-            // Stream done — remove blinking cursor, render final formatted reply
-            element.innerHTML = formatAI(fullReply);
-            }
-
-            // Check if reply contains booking actions — handle via non-stream
-            if (fullReply.includes('[LOOKUP_BOOKING]') ||
-                fullReply.includes('[SUBMIT_BOOKING]') ||
-                fullReply.includes('[HANDOFF_REQUESTED]')) {
-                // Re-send via non-streaming endpoint for server-side processing
-                element.remove();
-                const fd2 = new FormData();
-                fd2.append('message', text || 'I sent an image, please analyze it.');
-                if (imageFile) fd2.append('image', imageFile);
-                const res2 = await fetch('/chat', { method: 'POST', body: fd2 });
-                const data2 = await res2.json();
-                if (data2.action === 'MANAGE_BOOKINGS') {
-                    renderBookingCards(data2.bookings);
-                } else if (data2.reply) {
-                    addMessage(data2.reply, 'ai');
-                }
+            if (data.action === 'MANAGE_BOOKINGS') {
+                renderBookingCards(data.bookings);
+            } else if (data.reply) {
+                addMessage(data.reply, 'ai');
             }
 
             addFollowChips();
