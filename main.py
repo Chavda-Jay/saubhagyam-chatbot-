@@ -37,12 +37,13 @@ DEFAULT_MODEL = "meta/llama-3.1-8b-instruct"
 # SENDGRID_API_KEY = os.environ.get("SENDGRID_API_KEY", "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")
 SMTP_HOST        = "smtp.gmail.com"
 SMTP_PORT        = 587
-SMTP_USERNAME    = "chavdajay510@gmail.com"
-SMTP_PASSWORD    = "sbkbiounwrpoaphd"
-FROM_EMAIL       = "chavdajay510@gmail.com"
-ADMIN_EMAIL      = "chavdajay510@gmail.com"
+SMTP_USERNAME    = os.environ.get("SMTP_USERNAME", "chavdajay510@gmail.com")
+SMTP_PASSWORD    = os.environ.get("SMTP_PASSWORD", "wyrkbnuxxroxawhj")
+FROM_EMAIL       = os.environ.get("FROM_EMAIL", "chavdajay510@gmail.com")
+ADMIN_EMAIL      = os.environ.get("ADMIN_EMAIL", "chavdajay510@gmail.com")
 WHATSAPP_NO      = "+919998978397"
-SENDGRID_API_KEY = "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"
+#SENDGRID_API_KEY = os.environ.get("SENDGRID_API_KEY", "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")
+SENDGRID_API_KEY = os.environ.get("SENDGRID_API_KEY", "")
 # ══════════════════════════════════════════════════════════════
 #   SYSTEM PROMPT
 # ══════════════════════════════════════════════════════════════
@@ -55,6 +56,14 @@ LANGUAGE RULES:
 2. HINDI/HINGLISH (namaste, kaise ho) -> reply in Hinglish
 3. ENGLISH -> reply in English
 Keep technical terms (AI, Blockchain, API) in English always.
+
+RESPONSE STYLE:
+- Reply naturally and conversationally, like a helpful human, NOT like a brochure.
+- Keep replies SHORT (2-5 sentences) unless user explicitly asks for full details, a list, or "tell me more".
+- Do NOT dump the entire service list unless the user asks "what services do you offer" or similar broad questions.
+- If user asks something specific (e.g. "I want to make a mobile app"), give a brief, relevant, friendly response and ask a follow-up question to understand their needs better - don't list every sub-service.
+- Use bullet points and bold headings ONLY when listing multiple items the user specifically asked for.
+- Match the tone of the user's message - casual question gets casual short answer, detailed request gets detailed answer.
 
 COMPANY:
 Name  : SAUBHAGYAM Web Pvt. Ltd.
@@ -171,32 +180,55 @@ RULES:
 #   EMAIL HELPER
 # ══════════════════════════════════════════════════════════════
 def send_email(to_email: str, subject: str, body: str, is_html: bool = False):
+    """Send email via Gmail SMTP (primary) or SendGrid API (if key is set)."""
+    if not to_email or "@" not in to_email:
+        print(f"[EMAIL SKIP] Invalid recipient: {to_email}")
+        return
+
+    # ── Use SendGrid if API key is available ──
+    if SENDGRID_API_KEY:
+        try:
+            import urllib.request, urllib.error, ssl
+            ctx = ssl.create_default_context()
+            ctx.check_hostname = False
+            ctx.verify_mode = ssl.CERT_NONE
+            data = json.dumps({
+                "personalizations": [{"to": [{"email": to_email}]}],
+                "from": {"email": FROM_EMAIL, "name": "Saubhagyam AI"},
+                "subject": subject,
+                "content": [{"type": "text/plain", "value": body}]
+            }).encode("utf-8")
+            req = urllib.request.Request(
+                "https://api.sendgrid.com/v3/mail/send",
+                data=data,
+                headers={
+                    "Authorization": f"Bearer {SENDGRID_API_KEY}",
+                    "Content-Type": "application/json"
+                },
+                method="POST"
+            )
+            with urllib.request.urlopen(req, timeout=30, context=ctx) as response:
+                print(f"[EMAIL OK SendGrid] {to_email} — Status: {response.status}")
+                return
+        except Exception as e:
+            print(f"[SendGrid FAIL] {e} — Falling back to SMTP...")
+
+    # ── Gmail SMTP (primary / fallback) ──
     try:
-        import urllib.request, urllib.error, ssl
-        ctx = ssl.create_default_context()
-        ctx.check_hostname = False
-        ctx.verify_mode = ssl.CERT_NONE
-        data = json.dumps({
-            "personalizations": [{"to": [{"email": to_email}]}],
-            "from": {"email": FROM_EMAIL, "name": "Saubhagyam AI"},
-            "subject": subject,
-            "content": [{"type": "text/plain", "value": body}]
-        }).encode("utf-8")
-        req = urllib.request.Request(
-            "https://api.sendgrid.com/v3/mail/send",
-            data=data,
-            headers={
-                "Authorization": f"Bearer {SENDGRID_API_KEY}",
-                "Content-Type": "application/json"
-            },
-            method="POST"
-        )
-        with urllib.request.urlopen(req, timeout=30, context=ctx) as response:
-            print(f"[EMAIL OK] {to_email} — Status: {response.status}")
-    except urllib.error.HTTPError as e:
-        print(f"[EMAIL FAIL HTTP] {e.code} — {e.read().decode()}")
+        msg = MIMEMultipart()
+        msg["From"]    = f"Saubhagyam AI <{SMTP_USERNAME}>"
+        msg["To"]      = to_email
+        msg["Subject"] = subject
+        content_type = "html" if is_html else "plain"
+        msg.attach(MIMEText(body, content_type))
+
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=30) as server:
+            server.starttls()
+            server.login(SMTP_USERNAME, SMTP_PASSWORD)
+            server.sendmail(SMTP_USERNAME, to_email, msg.as_string())
+        print(f"[EMAIL OK SMTP] {to_email}")
     except Exception as e:
-        print(f"[EMAIL FAIL] {e}")
+        print(f"[EMAIL FAIL SMTP] {e}")
 # ══════════════════════════════════════════════════════════════
 #   SAFETY SCANNER
 # ══════════════════════════════════════════════════════════════

@@ -335,6 +335,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const transcript = e.results[0][0].transcript;
             userInput.value = transcript;
             userInput.focus();
+            handleSend();
         };
 
         recognition.onend = () => {
