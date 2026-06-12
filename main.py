@@ -4,7 +4,7 @@ from email.mime.multipart import MIMEMultipart
 from typing import Optional
 import uvicorn
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
@@ -24,7 +24,11 @@ except ImportError:
 #   CONFIG  ← Fill these in. No .env file needed.
 # ══════════════════════════════════════════════════════════════
 NVIDIA_BASE_URL = "https://integrate.api.nvidia.com/v1"
-DEFAULT_MODEL = "meta/llama-3.1-8b-instruct"
+DEFAULT_MODEL = "meta/llama-3.3-70b-instruct"
+FALLBACK_MODELS = [
+    "meta/llama-3.1-70b-instruct",
+    "meta/llama-3.1-8b-instruct",    # last resort
+]
 
 # SMTP_HOST      = "smtp.gmail.com"
 # SMTP_PORT      = 587
@@ -50,37 +54,62 @@ BASE_SYSTEM_PROMPT = """
 You are "Saubhagyam AI," the official digital ambassador for SAUBHAGYAM Web Pvt. Ltd.
 Be polite, friendly, and professional like a real human support agent.
 
-LANGUAGE RULES (ABSOLUTE - NO EXCEPTIONS):
+═══════════════════════════════════════════════════════
+LANGUAGE RULES — CRITICAL, FOLLOW EXACTLY
+═══════════════════════════════════════════════════════
 
-STEP 1 - Detect language of user's CURRENT message ONLY (ignore previous messages):
-- Contains "kem cho", "su che", "majama", "kevu", "saru", "chhe" -> GUJARATI
-- Contains "namaste", "kaise ho", "kya hai", "kar do", "bhai", "haan", "nahi" -> HINDI
-- English words/sentences -> ENGLISH
-- Greetings like "hi", "hello", "hey" with no other language words -> ENGLISH
+DEFAULT LANGUAGE: ENGLISH. If you are unsure about the user's language, ALWAYS reply in English.
 
-STEP 2 - Generate your ENTIRE reply in ONLY that ONE language:
-- ENGLISH detected -> Write 100% in English. Zero Hindi or Gujarati words.
-- GUJARATI detected -> Write 100% in transliterated Gujarati (Gujarati words spelled in English letters, like "Kem cho! Tame kai service mate puchhva mangta cho?"). Zero Hindi words like "hai", "kya", "kar". Zero English sentences.
-- HINDI detected -> Write 100% in Hinglish (like "Namaste! Aap kis service ke baare mein jaanna chahte hain?"). Zero Gujarati words like "chhe", "cho". Zero pure English sentences.
+STEP 1 — Detect the language of the user's CURRENT message ONLY:
 
-STEP 3 - BEFORE finalizing your reply, check: does it contain words from TWO different languages (other than technical terms like AI, API, Blockchain)? If yes, REWRITE the entire reply in only the detected language.
+GUJARATI — ONLY if the message contains Gujarati-specific words like:
+kem cho, su che, majama, kevu, saru, chhe, tamne, mane, aapne, janvu, karvu,
+mangta, puchhvu, kahevu, pan, tame, amne, mare, karo, karo cho, joi, joiye,
+hoy, hatu, thay, thase, badhu, bov, shu, ahi, tya, chhiye, banavvu, joi rahu
 
-NEVER write bracket translations like "(Hello, how are you?)". NEVER mix Hindi words (hai, kya, mein, kar) into a Gujarati reply, and NEVER mix Gujarati words (chhe, cho, su) into a Hindi reply.
+HINDI — ONLY if the message contains Hindi-specific words like:
+namaste, kaise, kya, hai, hain, karo, karna, chahte, baare, mein, humein,
+aapka, aapko, bataiye, dijiye, haan, nahi, bhai, yaar, achha, theek, zaroorat,
+chahiye, kaisa, kaise ho, batao, samajh, ho, hum, aap, kar, kijiye, sakte
 
-EXAMPLES:
-User: "kem cho" -> Reply: "Kem cho! Hu majama chu. Tamne SAUBHAGYAM ni koi service vishe janvu che?"
-User: "namaste kya haal hai" -> Reply: "Namaste! Main theek hoon. Aap SAUBHAGYAM ki kis service ke baare mein jaanna chahte hain?"
-User: "hello" -> Reply: "Hello! Welcome to SAUBHAGYAM. How can I help you today?"
+ENGLISH — If the message is in English or uses common greetings like "hi", "hello", "hey", "thanks", etc.
 
-Keep technical/service names (AI, Blockchain, API, Web Development etc.) in English in all cases.
+STEP 2 — Reply in ONLY that ONE language. NO mixing allowed:
+
+If ENGLISH: Write your ENTIRE reply in pure English only.
+  FORBIDDEN in English replies: Any Hindi or Gujarati words.
+
+If GUJARATI: Write your ENTIRE reply in transliterated Gujarati (Gujarati words written in English script).
+  FORBIDDEN in Gujarati replies: Hindi words such as hai, kya, mein, kar, karo, karna, hum, chahte, chahiye, baare, zaroorat, aapko, batao, dijiye, sakte.
+  Use Gujarati equivalents: "chhe" (not "hai"), "shu" (not "kya"), "ma" (not "mein"), "karo" in Gujarati context, "ame" (not "hum"), "joiye chhe" (not "chahiye").
+
+If HINDI: Write your ENTIRE reply in Hinglish (Hindi words in English script).
+  FORBIDDEN in Hindi replies: Gujarati words such as chhe, cho, che, tamne, mane, janvu, karvu, mangta, joiye, thase, chhiye, banavvu.
+  Use Hindi equivalents: "hai" (not "chhe"), "kya" (not "shu"), "mein" (not "ma"), "chahiye" (not "joiye chhe").
+
+STEP 3 — SELF-CHECK before sending:
+Read your reply word by word. If ANY word belongs to a different language than the detected one (except technical terms like AI, Blockchain, API, React, Node.js, Flutter, etc.), DELETE that word and replace it with the correct word in the detected language. If you cannot translate it, remove the sentence entirely.
+
+EXAMPLES OF CORRECT REPLIES:
+User: "kem cho" → "Kem cho! Hu majama chu. Tamne SAUBHAGYAM ni koi service vishe janvu che?"
+User: "Tell me about your AI services" → "Hello! We offer a wide range of AI services including AI Development, Chatbot Development, and Machine Learning solutions. What specific area are you interested in?"
+User: "namaste kya haal hai" → "Namaste! Main theek hoon. Aap SAUBHAGYAM ki kis service ke baare mein jaanna chahte hain?"
+User: "I want to make mobile application" → "Hello! You want to make a mobile application, is that right? We can help you with that. We offer iOS, Android, React Native, Flutter, and Kotlin development. Which platform are you interested in?"
+
+EXAMPLES OF WRONG REPLIES (NEVER DO THIS):
+WRONG: "Kem cho! Hu majama chu. Tamne SAUBHAGYAM ni koi AI vishe janvu che? Hum AI development, AI chatbot development karte hain." (Mixed Gujarati + Hindi)
+WRONG: "Namaste! Aapko e-commerce website banane ke liye kya zaroorat hai? Hum aapko Magento, Shopify, WooCommerce..." followed by English sentences. (Mixed Hindi + English)
+WRONG: "Hello! You want to make a mobile application, is that right? Hum aapki madad kar sakte hain." (Mixed English + Hindi)
+
+Keep technical/brand names (AI, Blockchain, API, Web Development, React, Flutter, etc.) in English in ALL languages.
 
 RESPONSE STYLE:
 - Reply naturally and conversationally, like a helpful human, NOT like a brochure.
 - Keep replies SHORT (2-5 sentences) unless user explicitly asks for full details, a list, or "tell me more".
 - Do NOT dump the entire service list unless the user asks "what services do you offer" or similar broad questions.
-- If user asks something specific (e.g. "I want to make a mobile app"), give a brief, relevant, friendly response and ask a follow-up question to understand their needs better - don't list every sub-service.
+- If user asks something specific (e.g. "I want to make a mobile app"), give a brief, relevant, friendly response and ask a follow-up question to understand their needs better — don't list every sub-service.
 - Use bullet points and bold headings ONLY when listing multiple items the user specifically asked for.
-- Match the tone of the user's message - casual question gets casual short answer, detailed request gets detailed answer.
+- Match the tone of the user's message — casual question gets casual short answer, detailed request gets detailed answer.
 
 COMPANY:
 Name  : SAUBHAGYAM Web Pvt. Ltd.
@@ -270,6 +299,75 @@ def is_unsafe(text: str) -> bool:
 
 
 # ══════════════════════════════════════════════════════════════
+#   LANGUAGE DETECTION (Server-side, deterministic)
+# ══════════════════════════════════════════════════════════════
+_GUJARATI_WORDS = {
+    "kem", "cho", "che", "chhe", "su", "shu", "majama", "kevu", "saru",
+    "tamne", "mane", "aapne", "janvu", "karvu", "mangta", "puchhvu",
+    "kahevu", "pan", "tame", "amne", "mare", "joi", "joiye", "hoy",
+    "hatu", "thay", "thase", "badhu", "bov", "ahi", "tya", "chhiye",
+    "banavvu", "nathi", "karo", "karso", "batavo", "kevi", "rite",
+    "mate", "vishe", "ketlu", "kem cho", "maja ma", "tamaru", "amaru",
+}
+
+_HINDI_WORDS = {
+    "namaste", "kaise", "kya", "hai", "hain", "karo", "karna", "chahte",
+    "baare", "mein", "humein", "aapka", "aapko", "bataiye", "dijiye",
+    "haan", "nahi", "bhai", "yaar", "achha", "theek", "zaroorat",
+    "chahiye", "kaisa", "batao", "samajh", "hum", "aap", "kar",
+    "kijiye", "sakte", "mujhe", "kuch", "bahut", "accha", "bolo",
+    "suniye", "dekhiye", "karenge", "karein", "chaiye", "dost",
+    "jaldi", "abhi", "yahan", "wahan", "kyun", "kaise ho",
+}
+
+def detect_language(text: str) -> str:
+    """Detect language from user input using keyword matching."""
+    words = set(re.findall(r'[a-zA-Z]+', text.lower()))
+    
+    guj_score = len(words & _GUJARATI_WORDS)
+    hin_score = len(words & _HINDI_WORDS)
+    
+    # Check for multi-word Gujarati phrases
+    text_lower = text.lower()
+    if "kem cho" in text_lower or "maja ma" in text_lower:
+        guj_score += 3
+    if "kaise ho" in text_lower or "kya hai" in text_lower:
+        hin_score += 3
+    
+    if guj_score > hin_score and guj_score >= 1:
+        return "GUJARATI"
+    elif hin_score > guj_score and hin_score >= 1:
+        return "HINDI"
+    else:
+        return "ENGLISH"
+
+_LANG_INSTRUCTIONS = {
+    "ENGLISH": (
+        "[LANGUAGE INSTRUCTION: The user is writing in ENGLISH. "
+        "You MUST reply ONLY in English. Do NOT use any Hindi or Gujarati words. "
+        "Do NOT add translations in brackets. Write a clean English-only response.]\n\n"
+    ),
+    "GUJARATI": (
+        "[LANGUAGE INSTRUCTION: The user is writing in GUJARATI. "
+        "You MUST reply ONLY in transliterated Gujarati (Gujarati words in English letters). "
+        "Do NOT use Hindi words like hai, kya, mein, hum, chahiye, zaroorat, aapko. "
+        "Do NOT add English translations in brackets. "
+        "Use words like chhe, shu, tamne, ame, joiye chhe, karvu.]\n\n"
+    ),
+    "HINDI": (
+        "[LANGUAGE INSTRUCTION: The user is writing in HINDI. "
+        "You MUST reply ONLY in Hinglish (Hindi words in English letters). "
+        "Do NOT use Gujarati words like chhe, cho, tamne, janvu, thase, joiye. "
+        "Do NOT add English translations in brackets. "
+        "Use words like hai, kya, mein, hum, chahiye, aapko.]\n\n"
+    ),
+}
+
+# Pattern to strip bracket translations like "(Hello! How are you?)"
+_BRACKET_TRANSLATION = re.compile(r'\s*\([A-Z][^)]{10,}\)')
+
+
+# ══════════════════════════════════════════════════════════════
 #   CHATBOT CLASS
 # ══════════════════════════════════════════════════════════════
 class SaubhagyamChatbot:
@@ -286,25 +384,104 @@ class SaubhagyamChatbot:
     def ask(self, user_input: str, image_b64: str = None) -> str:
         if is_unsafe(user_input):
             return SAFETY_REFUSAL
+
+        # Detect language and prepend instruction
+        lang = detect_language(user_input)
+        lang_prefix = _LANG_INSTRUCTIONS[lang]
+
         if image_b64:
             content = [
-                {"type": "text", "text": user_input},
+                {"type": "text", "text": lang_prefix + user_input},
                 {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_b64}"}}
             ]
         else:
-            content = user_input
+            content = lang_prefix + user_input
+
         self.history.append({"role": "user", "content": content})
-        try:
-            res = self.client.chat.completions.create(
-                model=self.model, messages=self.history,
-                temperature=0.5, max_tokens=1024
-            )
-            reply = res.choices[0].message.content
-        except Exception as ex:
+
+        # Try primary model, then fallback models if it fails
+        models_to_try = [self.model] + FALLBACK_MODELS
+        reply = None
+        last_error = None
+
+        for model_name in models_to_try:
+            try:
+                res = self.client.chat.completions.create(
+                    model=model_name, messages=self.history,
+                    temperature=0.3, max_tokens=1024
+                )
+                reply = res.choices[0].message.content
+                if model_name != self.model:
+                    print(f"[FALLBACK] Primary model failed, used: {model_name}")
+                break
+            except Exception as ex:
+                last_error = ex
+                print(f"[MODEL FAIL] {model_name}: {ex}")
+                continue
+
+        if reply is None:
             self.history.pop()
-            return f"[AI Error: {ex}]"
+            return f"[AI Error: {last_error}]"
+
+        # Post-process: strip bracket translations like "(Hello! How are you?)"
+        reply = _BRACKET_TRANSLATION.sub('', reply)
+        reply = reply.strip()
+
         self.history.append({"role": "assistant", "content": reply})
         return reply
+
+    def ask_stream(self, user_input: str, image_b64: str = None):
+        """Generator that yields tokens as they stream from the model."""
+        if is_unsafe(user_input):
+            yield SAFETY_REFUSAL
+            return
+
+        # Detect language and prepend instruction
+        lang = detect_language(user_input)
+        lang_prefix = _LANG_INSTRUCTIONS[lang]
+
+        if image_b64:
+            content = [
+                {"type": "text", "text": lang_prefix + user_input},
+                {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_b64}"}}
+            ]
+        else:
+            content = lang_prefix + user_input
+
+        self.history.append({"role": "user", "content": content})
+
+        models_to_try = [self.model] + FALLBACK_MODELS
+        full_reply = ""
+        success = False
+
+        for model_name in models_to_try:
+            try:
+                stream = self.client.chat.completions.create(
+                    model=model_name, messages=self.history,
+                    temperature=0.3, max_tokens=1024,
+                    stream=True
+                )
+                if model_name != self.model:
+                    print(f"[FALLBACK STREAM] Primary model failed, used: {model_name}")
+                for chunk in stream:
+                    if chunk.choices and chunk.choices[0].delta.content:
+                        token = chunk.choices[0].delta.content
+                        full_reply += token
+                        yield token
+                success = True
+                break
+            except Exception as ex:
+                print(f"[MODEL FAIL STREAM] {model_name}: {ex}")
+                continue
+
+        if not success:
+            self.history.pop()
+            yield "[AI Error: All models failed]"
+            return
+
+        # Post-process and save to history
+        full_reply = _BRACKET_TRANSLATION.sub('', full_reply).strip()
+        self.history.append({"role": "assistant", "content": full_reply})
 
     def inject(self, msg: str) -> str:
         self.history.append({"role": "user", "content": f"[SYSTEM]: {msg}"})
@@ -412,7 +589,23 @@ def create_app(api_key: str, model: str) -> FastAPI:
     async def admin():
         return FileResponse("ui-chatbot/admin.html")
 
-    # ── MAIN CHAT ENDPOINT ───────────────────────────────────
+    # ── STREAMING CHAT ENDPOINT (SSE) ────────────────────────
+    @app.post("/chat/stream")
+    async def chat_stream(message: str = Form(...), image: UploadFile = File(None)):
+        image_b64 = None
+        if image and image.filename:
+            raw = await image.read()
+            image_b64 = base64.b64encode(raw).decode("utf-8")
+
+        def generate():
+            for token in chatbot.ask_stream(message, image_b64):
+                # SSE format: data: <token>\n\n
+                yield f"data: {json.dumps({'token': token})}\n\n"
+            yield "data: [DONE]\n\n"
+
+        return StreamingResponse(generate(), media_type="text/event-stream")
+
+    # ── MAIN CHAT ENDPOINT (non-streaming, for bookings etc.) ─
     @app.post("/chat")
     async def chat(message: str = Form(...), image: UploadFile = File(None)):
         image_b64 = None

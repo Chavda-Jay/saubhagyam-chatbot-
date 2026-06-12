@@ -967,3 +967,19 @@ body {
         right: 20px;
     }
 }
+
+/* ══════════════════════════════════════════════════
+   STREAMING CURSOR (ChatGPT-style blinking cursor)
+   ══════════════════════════════════════════════════ */
+.streaming-cursor {
+    display: inline;
+    color: var(--primary);
+    font-weight: bold;
+    animation: cursor-blink 0.7s step-end infinite;
+    margin-left: 2px;
+}
+
+@keyframes cursor-blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+}

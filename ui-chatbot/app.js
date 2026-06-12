@@ -41,6 +41,75 @@ document.addEventListener('DOMContentLoaded', () => {
     let isRecording = false;
     let recognition = null;
 
+    // ── Chat Persistence (sessionStorage) ─────────
+    const CHAT_STORAGE_KEY = 'saubhagyam_chat_messages';
+
+    function saveChatToStorage() {
+        const messages = [];
+        chatWindow.querySelectorAll('.user-msg, .ai-msg, .follow-chips').forEach(el => {
+            if (el.classList.contains('follow-chips')) return; // skip follow chips, they get re-added
+            if (el.classList.contains('image-msg')) {
+                // Can't persist blob URLs, save a placeholder
+                messages.push({
+                    type: el.classList.contains('user-msg') ? 'user' : 'ai',
+                    isImage: true,
+                    html: '<p style="opacity:0.6;"><em>📷 Image (not available after refresh)</em></p>'
+                });
+            } else if (el.classList.contains('user-msg')) {
+                messages.push({ type: 'user', text: el.textContent });
+            } else if (el.classList.contains('ai-msg')) {
+                messages.push({ type: 'ai', html: el.innerHTML });
+            }
+        });
+        try {
+            sessionStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(messages));
+        } catch (e) {
+            // Storage full or unavailable — silently ignore
+        }
+    }
+
+    function restoreChatFromStorage() {
+        try {
+            const raw = sessionStorage.getItem(CHAT_STORAGE_KEY);
+            if (!raw) return;
+            const messages = JSON.parse(raw);
+            if (!messages || messages.length === 0) return;
+
+            // Hide quick chips since there's history
+            quickChips.style.display = 'none';
+
+            messages.forEach(msg => {
+                const div = document.createElement('div');
+                if (msg.type === 'user') {
+                    div.classList.add('user-msg');
+                    if (msg.isImage) {
+                        div.classList.add('image-msg');
+                        div.innerHTML = msg.html;
+                    } else {
+                        div.textContent = msg.text;
+                    }
+                } else {
+                    div.classList.add('ai-msg');
+                    if (msg.isImage) {
+                        div.classList.add('image-msg');
+                    }
+                    div.innerHTML = msg.html || '';
+                }
+                chatWindow.appendChild(div);
+            });
+
+            // Add follow chips at the end
+            addFollowChips();
+            scrollBottom();
+        } catch (e) {
+            // Corrupted data — clear and start fresh
+            sessionStorage.removeItem(CHAT_STORAGE_KEY);
+        }
+    }
+
+    // Restore chat on page load
+    restoreChatFromStorage();
+
     // ══════════════════════════════════════════════
     //   LAUNCHER — Open / Close
     // ══════════════════════════════════════════════
@@ -60,6 +129,7 @@ document.addEventListener('DOMContentLoaded', () => {
             '.user-msg, .ai-msg, .follow-chips, .image-msg'
         ).forEach(el => el.remove());
         quickChips.style.display = 'flex';
+        sessionStorage.removeItem(CHAT_STORAGE_KEY);
     });
 
     // ══════════════════════════════════════════════
@@ -115,21 +185,81 @@ document.addEventListener('DOMContentLoaded', () => {
             formData.append('message', text || 'I sent an image, please analyze it.');
             if (imageFile) formData.append('image', imageFile);
 
-            const response = await fetch('/chat', {
+            // Use streaming endpoint for real-time word-by-word display
+            const response = await fetch('/chat/stream', {
                 method: 'POST',
                 body: formData
             });
-            const data = await response.json();
+
             typingIndicator.classList.add('hidden');
 
-            if (data.action === 'MANAGE_BOOKINGS') {
-                renderBookingCards(data.bookings);
-            } else if (data.reply) {
-                addMessage(data.reply, 'ai');
-            } else {
-                addMessage('Sorry, something went wrong. Please try again.', 'ai');
+            if (!response.ok) {
+                // Fallback to non-streaming if stream endpoint fails
+                const fallbackRes = await fetch('/chat', { method: 'POST', body: formData });
+                const data = await fallbackRes.json();
+                if (data.action === 'MANAGE_BOOKINGS') {
+                    renderBookingCards(data.bookings);
+                } else if (data.reply) {
+                    addMessage(data.reply, 'ai');
+                }
+                addFollowChips();
+                return;
             }
+
+            // Read SSE stream and display tokens word by word
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            const { element, update } = addStreamingMessage();
+            let fullReply = '';
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                const chunk = decoder.decode(value, { stream: true });
+                const lines = chunk.split('\n');
+
+                for (const line of lines) {
+                    if (line.startsWith('data: ')) {
+                        const data = line.slice(6).trim();
+                        if (data === '[DONE]') break;
+                        try {
+                            const parsed = JSON.parse(data);
+                            if (parsed.token) {
+                                fullReply += parsed.token;
+                                update(fullReply);
+                                scrollBottom();
+                            }
+                        } catch (e) {
+                            // Skip malformed JSON
+                        }
+                    }
+                }
+
+            // Stream done — remove blinking cursor, render final formatted reply
+            element.innerHTML = formatAI(fullReply);
+            }
+
+            // Check if reply contains booking actions — handle via non-stream
+            if (fullReply.includes('[LOOKUP_BOOKING]') ||
+                fullReply.includes('[SUBMIT_BOOKING]') ||
+                fullReply.includes('[HANDOFF_REQUESTED]')) {
+                // Re-send via non-streaming endpoint for server-side processing
+                element.remove();
+                const fd2 = new FormData();
+                fd2.append('message', text || 'I sent an image, please analyze it.');
+                if (imageFile) fd2.append('image', imageFile);
+                const res2 = await fetch('/chat', { method: 'POST', body: fd2 });
+                const data2 = await res2.json();
+                if (data2.action === 'MANAGE_BOOKINGS') {
+                    renderBookingCards(data2.bookings);
+                } else if (data2.reply) {
+                    addMessage(data2.reply, 'ai');
+                }
+            }
+
             addFollowChips();
+            saveChatToStorage();
 
         } catch (err) {
             typingIndicator.classList.add('hidden');
@@ -154,6 +284,24 @@ document.addEventListener('DOMContentLoaded', () => {
         animateIn(div);
         chatWindow.appendChild(div);
         scrollBottom();
+        saveChatToStorage();
+    }
+
+    // Creates a streaming AI message that updates word by word
+    function addStreamingMessage() {
+        const div = document.createElement('div');
+        div.classList.add('ai-msg');
+        div.innerHTML = '<span class="streaming-cursor">▊</span>';
+        animateIn(div);
+        chatWindow.appendChild(div);
+        scrollBottom();
+
+        return {
+            element: div,
+            update: (text) => {
+                div.innerHTML = formatAI(text) + '<span class="streaming-cursor">▊</span>';
+            }
+        };
     }
 
     function addImageMessage(file, sender) {
@@ -167,6 +315,7 @@ document.addEventListener('DOMContentLoaded', () => {
         animateIn(wrapper);
         chatWindow.appendChild(wrapper);
         scrollBottom();
+        saveChatToStorage();
     }
 
     // ══════════════════════════════════════════════
@@ -497,6 +646,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (data.reply) {
                     addMessage(data.reply, 'ai');
                     addFollowChips();
+                    saveChatToStorage();
                 }
             })
             .catch(() => {
