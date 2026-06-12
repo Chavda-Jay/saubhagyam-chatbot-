@@ -38,11 +38,10 @@ DEFAULT_MODEL = "meta/llama-3.1-8b-instruct"
 SMTP_HOST        = "smtp.gmail.com"
 SMTP_PORT        = 587
 SMTP_USERNAME    = os.environ.get("SMTP_USERNAME", "chavdajay510@gmail.com")
-SMTP_PASSWORD    = os.environ.get("SMTP_PASSWORD", "wyrkbnuxxroxawhj")
+SMTP_PASSWORD    = os.environ.get("SMTP_PASSWORD", "")
 FROM_EMAIL       = os.environ.get("FROM_EMAIL", "chavdajay510@gmail.com")
 ADMIN_EMAIL      = os.environ.get("ADMIN_EMAIL", "chavdajay510@gmail.com")
 WHATSAPP_NO      = "+919998978397"
-#SENDGRID_API_KEY = os.environ.get("SENDGRID_API_KEY", "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")
 SENDGRID_API_KEY = os.environ.get("SENDGRID_API_KEY", "")
 # ══════════════════════════════════════════════════════════════
 #   SYSTEM PROMPT
