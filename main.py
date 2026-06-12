@@ -302,20 +302,19 @@ def is_unsafe(text: str) -> bool:
 # ══════════════════════════════════════════════════════════════
 _GUJARATI_WORDS = {
     "kem", "cho", "che", "chhe", "su", "shu", "majama", "kevu", "saru",
-    "tamne", "mane", "aapne", "janvu", "karvu", "mangta", "puchhvu",
-    "kahevu", "pan", "tame", "amne", "mare", "joi", "joiye", "hoy",
+    "tamne", "aapne", "janvu", "karvu", "mangta", "puchhvu",
+    "kahevu", "tame", "amne", "mare", "joi", "joiye", "hoy",
     "hatu", "thay", "thase", "badhu", "bov", "ahi", "tya", "chhiye",
-    "banavvu", "nathi", "karo", "karso", "batavo", "kevi", "rite",
-    "mate", "vishe", "ketlu", "kem cho", "maja ma", "tamaru", "amaru",
+    "banavvu", "nathi", "karso", "batavo", "kevi", "rite",
+    "vishe", "ketlu", "kem cho", "maja ma", "tamaru", "amaru",
     "ame", "tamari", "mari", "tara", "maru", "tena", "teni", "teno",
-    "che ne", "haji", "have", "shi", "shoo", "kyare", "kya", "kone",
+    "haji", "shi", "shoo", "kyare", "kone",
     "shun", "shaane", "kevu chhe", "saru chhe", "saras", "sundar",
-    "vat", "vaat", "kaho", "kaheta", "thai", "thayu", "joiyu",
-    "aavyu", "gayu", "gayo", "aavi", "che ?", "chhe ?", "ne", "ne?",
-    "khabar", "samjhay", "samjyu", "j", "ja", "j ne", "atyare",
-    "aje", "kale", "gai", "raat", "divas", "savar", "sanj",
+    "kaho", "kaheta", "thai", "thayu", "joiyu",
+    "aavyu", "gayu", "gayo", "aavi",
+    "khabar", "samjhay", "samjyu", "atyare",
+    "aje", "kale",
 }
-
 _HINDI_WORDS = {
     "namaste", "kaise", "kya", "hai", "hain", "karo", "karna", "chahte",
     "baare", "mein", "humein", "aapka", "aapko", "bataiye", "dijiye",
@@ -336,7 +335,7 @@ def detect_language(text: str) -> str:
     # Check for multi-word Gujarati phrases
     text_lower = text.lower()
     guj_phrases = ["kem cho", "maja ma", "kevu che", "kevu chhe", "su che",
-                    "shu che", "che ne", "have to", "saru che", "majama che"]
+                    "shu che", "che ne", "saru che", "majama che"]
     hin_phrases = ["kaise ho", "kya hai", "kya haal", "kaise hain",
                     "achha hai", "theek hai"]
     for p in guj_phrases:
