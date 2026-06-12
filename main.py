@@ -24,11 +24,10 @@ except ImportError:
 #   CONFIG  ← Fill these in. No .env file needed.
 # ══════════════════════════════════════════════════════════════
 NVIDIA_BASE_URL = "https://integrate.api.nvidia.com/v1"
-DEFAULT_MODEL = "meta/llama-3.3-70b-instruct"
+DEFAULT_MODEL = "meta/llama-3.1-8b-instruct"
 FALLBACK_MODELS = [
-    "meta/llama-3.1-70b-instruct",
-    "meta/llama-3.1-8b-instruct",    # last resort
-]
+    "meta/llama-3.2-3b-instruct",
+] 
 
 # SMTP_HOST      = "smtp.gmail.com"
 # SMTP_PORT      = 587
@@ -308,6 +307,13 @@ _GUJARATI_WORDS = {
     "hatu", "thay", "thase", "badhu", "bov", "ahi", "tya", "chhiye",
     "banavvu", "nathi", "karo", "karso", "batavo", "kevi", "rite",
     "mate", "vishe", "ketlu", "kem cho", "maja ma", "tamaru", "amaru",
+    "ame", "tamari", "mari", "tara", "maru", "tena", "teni", "teno",
+    "che ne", "haji", "have", "shi", "shoo", "kyare", "kya", "kone",
+    "shun", "shaane", "kevu chhe", "saru chhe", "saras", "sundar",
+    "vat", "vaat", "kaho", "kaheta", "thai", "thayu", "joiyu",
+    "aavyu", "gayu", "gayo", "aavi", "che ?", "chhe ?", "ne", "ne?",
+    "khabar", "samjhay", "samjyu", "j", "ja", "j ne", "atyare",
+    "aje", "kale", "gai", "raat", "divas", "savar", "sanj",
 }
 
 _HINDI_WORDS = {
@@ -329,10 +335,14 @@ def detect_language(text: str) -> str:
     
     # Check for multi-word Gujarati phrases
     text_lower = text.lower()
-    if "kem cho" in text_lower or "maja ma" in text_lower:
-        guj_score += 3
-    if "kaise ho" in text_lower or "kya hai" in text_lower:
-        hin_score += 3
+    guj_phrases = ["kem cho", "maja ma", "kevu che", "kevu chhe", "su che",
+                    "shu che", "che ne", "have to", "saru che", "majama che"]
+    hin_phrases = ["kaise ho", "kya hai", "kya haal", "kaise hain",
+                    "achha hai", "theek hai"]
+    for p in guj_phrases:
+        if p in text_lower: guj_score += 3
+    for p in hin_phrases:
+        if p in text_lower: hin_score += 3
     
     if guj_score > hin_score and guj_score >= 1:
         return "GUJARATI"
@@ -350,9 +360,16 @@ _LANG_INSTRUCTIONS = {
     "GUJARATI": (
         "[LANGUAGE INSTRUCTION: The user is writing in GUJARATI. "
         "You MUST reply ONLY in transliterated Gujarati (Gujarati words in English letters). "
-        "Do NOT use Hindi words like hai, kya, mein, hum, chahiye, zaroorat, aapko. "
+        "Do NOT use Hindi words like hai, kya, mein, hum, chahiye, zaroorat, aapko, "
+        "namaste, kaise, karo (Hindi sense), batao, dijiye, sakte, samajh, kuch. "
         "Do NOT add English translations in brackets. "
-        "Use words like chhe, shu, tamne, ame, joiye chhe, karvu.]\n\n"
+        "Use ONLY these Gujarati words and patterns: chhe/che (is/are), shu (what), "
+        "tamne (to you), ame (we), tame (you), mane (to me), karvu/karso (to do), "
+        "joiye chhe (need/want), vishe (about), mate (for), kevi rite (how), "
+        "kyare (when), kone (whom), have (now), atyare (right now). "
+        "Example reply: 'Kem cho! Tame SAUBHAGYAM ni AI services vishe puchyu. "
+        "Ame AI Development, Chatbot Development ane Machine Learning services aapiye chhe. "
+        "Tamne kai service ma interest chhe?']\n\n"
     ),
     "HINDI": (
         "[LANGUAGE INSTRUCTION: The user is writing in HINDI. "
@@ -408,8 +425,8 @@ class SaubhagyamChatbot:
             try:
                 res = self.client.chat.completions.create(
                     model=model_name, messages=self.history,
-                    temperature=0.3, max_tokens=1024
-                )
+                    temperature=0.3, max_tokens=400
+)
                 reply = res.choices[0].message.content
                 if model_name != self.model:
                     print(f"[FALLBACK] Primary model failed, used: {model_name}")
