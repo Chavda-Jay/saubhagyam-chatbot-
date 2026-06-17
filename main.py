@@ -617,19 +617,39 @@ def create_app(api_key: str, model: str) -> FastAPI:
 
     @app.get("/api/chat/history")
     async def get_chat_history():
-        history = [
-            {
+        history = []
+        for i, msg in enumerate(chatbot.history):
+            if msg["role"] not in ("user", "assistant"):
+                continue
+            
+            content = msg["content"]
+            
+            # Clean language instruction prefix from user messages
+            if msg["role"] == "user":
+                if isinstance(content, list):
+                    # image message — extract text part only
+                    for block in content:
+                        if block.get("type") == "text":
+                            content = block["text"]
+                            break
+                    else:
+                        content = "[image message]"
+                # Strip language instruction prefix
+                if isinstance(content, str) and "\\n\\n" in content:
+                    content = content.split("\\n\\n", 1)[-1].strip()
+                elif isinstance(content, str) and "\n\n" in content:
+                    content = content.split("\n\n", 1)[-1].strip()
+
+            history.append({
                 "role": msg["role"],
-                "content": msg["content"] if isinstance(msg["content"], str) else "[image message]",
+                "message": content,
                 "index": i
-            }
-            for i, msg in enumerate(chatbot.history)
-            if msg["role"] in ("user", "assistant")
-        ]
+            })
+
         return {
             "total_messages": len(history),
-        "history": history
-    }
+            "history": history
+        }
 
     # ── STREAMING CHAT ENDPOINT (SSE) ────────────────────────
     @app.post("/chat/stream")
