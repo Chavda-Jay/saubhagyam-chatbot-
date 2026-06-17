@@ -103,12 +103,13 @@ WRONG: "Hello! You want to make a mobile application, is that right? Hum aapki m
 Keep technical/brand names (AI, Blockchain, API, Web Development, React, Flutter, etc.) in English in ALL languages.
 
 RESPONSE STYLE:
-- Reply naturally and conversationally, like a helpful human, NOT like a brochure.
-- Keep replies SHORT (2-5 sentences) unless user explicitly asks for full details, a list, or "tell me more".
-- Do NOT dump the entire service list unless the user asks "what services do you offer" or similar broad questions.
-- If user asks something specific (e.g. "I want to make a mobile app"), give a brief, relevant, friendly response and ask a follow-up question to understand their needs better — don't list every sub-service.
-- Use bullet points and bold headings ONLY when listing multiple items the user specifically asked for.
-- Match the tone of the user's message — casual question gets casual short answer, detailed request gets detailed answer.
+- Respond like a sharp, professional business representative — confident, concise, and expert.
+- Maximum 3 to 4 lines per reply. Never exceed 4 lines under any circumstance.
+- Be direct and to the point — no filler words, no over-friendly fluff, no brochure-style dumping.
+- If user asks about a service, give 3-4 crisp key points only — like an expert summarizing, not selling.
+- Ask one smart follow-up question at the end to move the conversation forward.
+- Never list everything — give what's relevant, stay sharp and focused.
+- Tone: Professional, confident, and efficient — like a senior consultant or business expert, not a chatbot.
 
 COMPANY:
 Name  : SAUBHAGYAM Web Pvt. Ltd.
@@ -212,6 +213,15 @@ If user wants to cancel or reschedule:
 4. Cancel   -> append at end: [CANCEL_BOOKING] ID: {booking_id}
 5. Reschedule -> validate slot -> append:
    [RESCHEDULE_BOOKING] ID: {booking_id} Date: {new_date} Time: {new_time}
+
+CAREER / JOB INQUIRIES:
+If any user asks about joining SAUBHAGYAM, career opportunities, or applying for any role:
+
+Step 1: Respond professionally — "We're always looking for strong talent. How many years of experience do you have in [role]?"
+Step 2: Ask directly — "What are 2-3 significant projects you've delivered?"
+Step 3: Ask — "What tech stack are you most confident in?"
+Step 4: Close with — "Please forward your updated resume to hr@saubhagyam.com. Our HR team will review and reach out if there's a fit."
+- Be direct, no small talk. One question at a time. Max 3-4 lines per reply.
 
 RULES:
 - Language matching always
@@ -424,7 +434,7 @@ class SaubhagyamChatbot:
             try:
                 res = self.client.chat.completions.create(
                     model=model_name, messages=self.history,
-                    temperature=0.3, max_tokens=400
+                    temperature=0.3, max_tokens=150
 )
                 reply = res.choices[0].message.content
                 if model_name != self.model:
@@ -474,7 +484,7 @@ class SaubhagyamChatbot:
             try:
                 stream = self.client.chat.completions.create(
                     model=model_name, messages=self.history,
-                    temperature=0.3, max_tokens=1024,
+                    temperature=0.3, max_tokens=150,
                     stream=True
                 )
                 if model_name != self.model:
@@ -604,6 +614,22 @@ def create_app(api_key: str, model: str) -> FastAPI:
     @app.get("/admin")
     async def admin():
         return FileResponse("ui-chatbot/admin.html")
+
+    @app.get("/api/chat/history")
+    async def get_chat_history():
+        history = [
+            {
+                "role": msg["role"],
+                "content": msg["content"] if isinstance(msg["content"], str) else "[image message]",
+                "index": i
+            }
+            for i, msg in enumerate(chatbot.history)
+            if msg["role"] in ("user", "assistant")
+        ]
+        return {
+            "total_messages": len(history),
+        "history": history
+    }
 
     # ── STREAMING CHAT ENDPOINT (SSE) ────────────────────────
     @app.post("/chat/stream")

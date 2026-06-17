@@ -46,10 +46,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function saveChatToStorage() {
         const messages = [];
-        chatWindow.querySelectorAll('.user-msg, .ai-msg, .follow-chips').forEach(el => {
-            if (el.classList.contains('follow-chips')) return; // skip follow chips, they get re-added
+        chatWindow.querySelectorAll('.user-msg, .ai-msg').forEach(el => {
             if (el.classList.contains('image-msg')) {
-                // Can't persist blob URLs, save a placeholder
                 messages.push({
                     type: el.classList.contains('user-msg') ? 'user' : 'ai',
                     isImage: true,
@@ -63,9 +61,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         try {
             sessionStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(messages));
-        } catch (e) {
-            // Storage full or unavailable — silently ignore
-        }
+        } catch (e) { }
     }
 
     function restoreChatFromStorage() {
@@ -90,19 +86,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 } else {
                     div.classList.add('ai-msg');
-                    if (msg.isImage) {
-                        div.classList.add('image-msg');
-                    }
                     div.innerHTML = msg.html || '';
                 }
                 chatWindow.appendChild(div);
             });
 
-            // Add follow chips at the end
-            addFollowChips();
             scrollBottom();
         } catch (e) {
-            // Corrupted data — clear and start fresh
             sessionStorage.removeItem(CHAT_STORAGE_KEY);
         }
     }
@@ -125,15 +115,13 @@ document.addEventListener('DOMContentLoaded', () => {
     //   CLEAR CHAT
     // ══════════════════════════════════════════════
     clearBtn.addEventListener('click', () => {
-        chatWindow.querySelectorAll(
-            '.user-msg, .ai-msg, .follow-chips, .image-msg'
-        ).forEach(el => el.remove());
+        chatWindow.querySelectorAll('.user-msg, .ai-msg, .image-msg').forEach(el => el.remove());
         quickChips.style.display = 'flex';
         sessionStorage.removeItem(CHAT_STORAGE_KEY);
     });
 
     // ══════════════════════════════════════════════
-    //   QUICK CHIPS
+    //   QUICK CHIPS — show only on first open
     // ══════════════════════════════════════════════
     quickChips.querySelectorAll('.chip').forEach(chip => {
         chip.addEventListener('click', () => {
@@ -164,110 +152,18 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function sendMessage(text, imageFile = null) {
-        // Remove old follow-up chips
-        chatWindow.querySelectorAll('.follow-chips').forEach(el => el.remove());
+        // Hide quick chips permanently after first message
+        quickChips.style.display = 'none';
 
         // Show user message
-        if (imageFile) {
-            addImageMessage(imageFile, 'user');
-        }
+        if (imageFile) addImageMessage(imageFile, 'user');
         if (text) addMessage(text, 'user');
-
-        quickChips.style.display = 'none';
 
         // Show typing
         typingIndicator.classList.remove('hidden');
         scrollBottom();
 
-        // try {
-        //     // Build FormData (supports text + image)
-        //     const formData = new FormData();
-        //     formData.append('message', text || 'I sent an image, please analyze it.');
-        //     if (imageFile) formData.append('image', imageFile);
-
-        //     // Use streaming endpoint for real-time word-by-word display
-        //     const response = await fetch('/chat/stream', {
-        //         method: 'POST',
-        //         body: formData
-        //     });
-
-        //     typingIndicator.classList.add('hidden');
-
-        //     if (!response.ok) {
-        //         // Fallback to non-streaming if stream endpoint fails
-        //         const fallbackRes = await fetch('/chat', { method: 'POST', body: formData });
-        //         const data = await fallbackRes.json();
-        //         if (data.action === 'MANAGE_BOOKINGS') {
-        //             renderBookingCards(data.bookings);
-        //         } else if (data.reply) {
-        //             addMessage(data.reply, 'ai');
-        //         }
-        //         addFollowChips();
-        //         return;
-        //     }
-
-        //     // Read SSE stream and display tokens word by word
-        //     const reader = response.body.getReader();
-        //     const decoder = new TextDecoder();
-        //     const { element, update } = addStreamingMessage();
-        //     let fullReply = '';
-
-        //     while (true) {
-        //         const { done, value } = await reader.read();
-        //         if (done) break;
-
-        //         const chunk = decoder.decode(value, { stream: true });
-        //         const lines = chunk.split('\n');
-
-        //         for (const line of lines) {
-        //             if (line.startsWith('data: ')) {
-        //                 const data = line.slice(6).trim();
-        //                 if (data === '[DONE]') break;
-        //                 try {
-        //                     const parsed = JSON.parse(data);
-        //                     if (parsed.token) {
-        //                         fullReply += parsed.token;
-        //                         update(fullReply);
-        //                         scrollBottom();
-        //                     }
-        //                 } catch (e) {
-        //                     // Skip malformed JSON
-        //                 }
-        //             }
-        //         }
-
-        //     // Stream done — remove blinking cursor, render final formatted reply
-        //     element.innerHTML = formatAI(fullReply);
-        //     }
-
-        //     // Check if reply contains booking actions — handle via non-stream
-        //     if (fullReply.includes('[LOOKUP_BOOKING]') ||
-        //         fullReply.includes('[SUBMIT_BOOKING]') ||
-        //         fullReply.includes('[HANDOFF_REQUESTED]')) {
-        //         // Re-send via non-streaming endpoint for server-side processing
-        //         element.remove();
-        //         const fd2 = new FormData();
-        //         fd2.append('message', text || 'I sent an image, please analyze it.');
-        //         if (imageFile) fd2.append('image', imageFile);
-        //         const res2 = await fetch('/chat', { method: 'POST', body: fd2 });
-        //         const data2 = await res2.json();
-        //         if (data2.action === 'MANAGE_BOOKINGS') {
-        //             renderBookingCards(data2.bookings);
-        //         } else if (data2.reply) {
-        //             addMessage(data2.reply, 'ai');
-        //         }
-        //     }
-
-        //     addFollowChips();
-        //     saveChatToStorage();
-
-        // } catch (err) {
-        //     typingIndicator.classList.add('hidden');
-        //     addMessage('Could not connect to the server. Make sure the backend is running.', 'ai');
-        //     console.error(err);
-        // }
         try {
-            // Build FormData (supports text + image)
             const formData = new FormData();
             formData.append('message', text || 'I sent an image, please analyze it.');
             if (imageFile) formData.append('image', imageFile);
@@ -285,9 +181,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 renderBookingCards(data.bookings);
             } else if (data.reply) {
                 addMessage(data.reply, 'ai');
+            } else {
+                addMessage('Sorry, something went wrong. Please try again.', 'ai');
             }
 
-            addFollowChips();
             saveChatToStorage();
 
         } catch (err) {
@@ -303,34 +200,15 @@ document.addEventListener('DOMContentLoaded', () => {
     function addMessage(text, sender) {
         const div = document.createElement('div');
         div.classList.add(sender === 'user' ? 'user-msg' : 'ai-msg');
-
         if (sender === 'ai') {
             div.innerHTML = formatAI(text);
         } else {
             div.textContent = text;
         }
-
         animateIn(div);
         chatWindow.appendChild(div);
         scrollBottom();
         saveChatToStorage();
-    }
-
-    // Creates a streaming AI message that updates word by word
-    function addStreamingMessage() {
-        const div = document.createElement('div');
-        div.classList.add('ai-msg');
-        div.innerHTML = '<span class="streaming-cursor">▊</span>';
-        animateIn(div);
-        chatWindow.appendChild(div);
-        scrollBottom();
-
-        return {
-            element: div,
-            update: (text) => {
-                div.innerHTML = formatAI(text) + '<span class="streaming-cursor">▊</span>';
-            }
-        };
     }
 
     function addImageMessage(file, sender) {
@@ -351,12 +229,10 @@ document.addEventListener('DOMContentLoaded', () => {
     //   FORMAT AI REPLY (markdown-like)
     // ══════════════════════════════════════════════
     function formatAI(text) {
-        // Links: [text](url)
         let html = text.replace(
             /\[([^\]]+)\]\((https?:\/\/[^\)]+)\)/g,
             '<a href="$2" target="_blank" rel="noopener">$1</a>'
         );
-        // Bold: **text**
         html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
 
         const lines = html.split('\n');
@@ -380,42 +256,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         if (inList) result += '</ul>';
         return result;
-    }
-
-    // ══════════════════════════════════════════════
-    //   FOLLOW-UP CHIPS (after each AI reply)
-    // ══════════════════════════════════════════════
-    function addFollowChips() {
-        chatWindow.querySelectorAll('.follow-chips').forEach(el => el.remove());
-
-        const chips = [
-            { label: '🤖 AI Services', query: 'Tell me about AI services' },
-            { label: '⛓️ Blockchain', query: 'Tell me about Blockchain services' },
-            { label: '🛡️ Cybersecurity', query: 'Tell me about Cybersecurity services' },
-            { label: '📈 Algo Trading', query: 'Tell me about Algo Trading' },
-            { label: '📅 Book Appointment', query: 'BOOK_APPOINTMENT' },
-            { label: '⚙️ Manage Booking', query: 'I want to manage my booking' },
-            { label: '👤 Talk to Human', query: 'HANDOFF' },
-        ];
-
-        const div = document.createElement('div');
-        div.classList.add('follow-chips');
-
-        chips.forEach(c => {
-            const btn = document.createElement('button');
-            btn.classList.add('chip');
-            btn.textContent = c.label;
-            btn.addEventListener('click', () => {
-                if (c.query === 'BOOK_APPOINTMENT') { openModal(bookingModal); return; }
-                if (c.query === 'HANDOFF') { openModal(handoffModal); return; }
-                sendMessage(c.query);
-            });
-            div.appendChild(btn);
-        });
-
-        animateIn(div);
-        chatWindow.appendChild(div);
-        scrollBottom();
     }
 
     // ══════════════════════════════════════════════
@@ -449,7 +289,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     <button class="btn-reschedule-booking">↻ Reschedule</button>
                 </div>`;
 
-            // Cancel
             card.querySelector('.btn-cancel-booking').addEventListener('click', async () => {
                 if (!confirm('Are you sure you want to cancel this appointment?')) return;
                 try {
@@ -469,7 +308,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
 
-            // Reschedule
             card.querySelector('.btn-reschedule-booking').addEventListener('click', () => {
                 document.getElementById('rescheduleBookingId').value = b.id;
                 openModal(rescheduleModal);
@@ -492,14 +330,10 @@ document.addEventListener('DOMContentLoaded', () => {
             addMessage('Voice input is not supported in this browser. Please use Chrome or Edge.', 'ai');
             return;
         }
-
-        if (isRecording) {
-            recognition && recognition.stop();
-            return;
-        }
+        if (isRecording) { recognition && recognition.stop(); return; }
 
         recognition = new SpeechRecognition();
-        recognition.lang = 'en-IN';   // supports English + Indian accent
+        recognition.lang = 'en-IN';
         recognition.continuous = false;
         recognition.interimResults = false;
 
@@ -508,20 +342,17 @@ document.addEventListener('DOMContentLoaded', () => {
             micBtn.classList.add('mic-active');
             micBtn.title = 'Listening... click to stop';
         };
-
         recognition.onresult = (e) => {
             const transcript = e.results[0][0].transcript;
             userInput.value = transcript;
             userInput.focus();
             handleSend();
         };
-
         recognition.onend = () => {
             isRecording = false;
             micBtn.classList.remove('mic-active');
             micBtn.title = 'Voice Input';
         };
-
         recognition.onerror = (e) => {
             isRecording = false;
             micBtn.classList.remove('mic-active');
@@ -529,7 +360,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 addMessage(`Voice error: ${e.error}. Please try again.`, 'ai');
             }
         };
-
         recognition.start();
     });
 
@@ -542,12 +372,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const file = e.target.files[0];
         if (!file) return;
         if (!file.type.startsWith('image/')) {
-            alert('Please select an image file (JPG, PNG, GIF, WebP).');
-            return;
+            alert('Please select an image file (JPG, PNG, GIF, WebP).'); return;
         }
         if (file.size > 5 * 1024 * 1024) {
-            alert('Image size must be under 5MB.');
-            return;
+            alert('Image size must be under 5MB.'); return;
         }
         selectedFile = file;
         imageThumb.src = URL.createObjectURL(file);
@@ -605,7 +433,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!container) return;
         container.querySelectorAll('.slot-btn').forEach(btn => {
             btn.addEventListener('click', () => {
-                // Deselect all siblings in this modal
                 container.querySelectorAll('.slot-btn').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
                 document.getElementById(hiddenInputId).value = btn.dataset.time;
@@ -613,9 +440,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Booking modal slots
     setupSlotButtons('#bookingModal .modal-form', 'bSelectedTime');
-    // Reschedule modal slots
     setupSlotButtons('#rescheduleModal .modal-form', 'rSelectedTime');
 
     // ══════════════════════════════════════════════
@@ -635,31 +460,25 @@ document.addEventListener('DOMContentLoaded', () => {
             alert('Please fill in all fields and select a time slot.'); return;
         }
 
-        // Past date check
         const dateObj = new Date(rawDate);
         const today = new Date(); today.setHours(0, 0, 0, 0);
         if (dateObj < today) {
             alert('Cannot book a past date. Please choose today or a future date.'); return;
         }
 
-        // Weekend check
         const day = dateObj.getDay();
         if (day === 0 || day === 6) {
             alert('We are only available Monday to Friday. Please choose a weekday.'); return;
         }
 
-        // Format date
         const date = dateObj.toLocaleDateString('en-GB');
-
         closeModal(bookingModal);
 
-        // Show user summary in chat
         addMessage(
             `Booking request submitted:\nName: ${name}\nEmail: ${email}\nPhone: ${phone}\nService: ${service}\nDate: ${date}\nTime: ${time}`,
             'user'
         );
 
-        // Internal prompt to AI backend
         const prompt = `[SYSTEM MESSAGE]: User submitted booking via form.\nName: ${name}\nEmail: ${email}\nPhone: ${phone}\nService: ${service}\nDate: ${date}\nTime: ${time}\nPlease confirm the details clearly and end your reply with [SUBMIT_BOOKING]`;
 
         typingIndicator.classList.remove('hidden');
@@ -674,7 +493,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 typingIndicator.classList.add('hidden');
                 if (data.reply) {
                     addMessage(data.reply, 'ai');
-                    addFollowChips();
                     saveChatToStorage();
                 }
             })
@@ -710,7 +528,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         const date = dateObj.toLocaleDateString('en-GB');
-
         closeModal(rescheduleModal);
 
         try {
@@ -722,7 +539,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const result = await res.json();
             if (result.success) {
                 addMessage(`Your appointment has been requested to reschedule to ${date} at ${time}. Admin will confirm shortly.`, 'ai');
-                // Update card UI
                 const card = document.getElementById(`card-${bookingId}`);
                 if (card) {
                     card.style.opacity = '0.6';
@@ -768,7 +584,6 @@ document.addEventListener('DOMContentLoaded', () => {
             addMessage('Failed to connect. Please email us at info@saubhagyam.com', 'ai');
         }
 
-        // Clear form
         document.getElementById('hName').value = '';
         document.getElementById('hContact').value = '';
         document.getElementById('hMessage').value = '';
@@ -777,17 +592,15 @@ document.addEventListener('DOMContentLoaded', () => {
     // ══════════════════════════════════════════════
     //   HELPERS
     // ══════════════════════════════════════════════
-    function openModal(modal) {
-        modal.classList.remove('hidden');
-    }
-    function closeModal(modal) {
-        modal.classList.add('hidden');
-    }
+    function openModal(modal) { modal.classList.remove('hidden'); }
+    function closeModal(modal) { modal.classList.add('hidden'); }
+
     function scrollBottom() {
         setTimeout(() => {
             chatWindow.scrollTo({ top: chatWindow.scrollHeight, behavior: 'smooth' });
         }, 60);
     }
+
     function animateIn(el) {
         el.style.opacity = '0';
         el.style.transform = 'translateY(10px)';
