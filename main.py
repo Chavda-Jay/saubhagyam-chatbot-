@@ -652,7 +652,7 @@ def create_app(api_key: str, model: str) -> FastAPI:
         }
 
     # ── CLEAR CHAT HISTORY API ───────────────────────────────
-    @app.post("/api/chat/clear")
+    @app.delete("/api/chat/clear")
     async def clear_chat_history():
         system_msg = chatbot.history[0]
         chatbot.history = [system_msg]

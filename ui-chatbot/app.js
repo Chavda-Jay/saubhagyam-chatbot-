@@ -121,7 +121,7 @@ document.addEventListener('DOMContentLoaded', () => {
         sessionStorage.removeItem('chips_hidden');
 
         try {
-            await fetch('/api/chat/clear', { method: 'POST' });
+            await fetch('/api/chat/clear', { method: 'DELETE' });
             console.log('Backend history cleared!');
         } catch (e) {
             console.error('Could not clear backend history:', e);
