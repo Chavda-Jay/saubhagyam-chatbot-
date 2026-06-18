@@ -114,10 +114,18 @@ document.addEventListener('DOMContentLoaded', () => {
     // ══════════════════════════════════════════════
     //   CLEAR CHAT
     // ══════════════════════════════════════════════
-    clearBtn.addEventListener('click', () => {
+    clearBtn.addEventListener('click', async () => {
         chatWindow.querySelectorAll('.user-msg, .ai-msg, .image-msg').forEach(el => el.remove());
         quickChips.style.display = 'flex';
         sessionStorage.removeItem(CHAT_STORAGE_KEY);
+        sessionStorage.removeItem('chips_hidden');
+
+        try {
+            await fetch('/api/chat/clear', { method: 'POST' });
+            console.log('Backend history cleared!');
+        } catch (e) {
+            console.error('Could not clear backend history:', e);
+        }
     });
 
     // ══════════════════════════════════════════════

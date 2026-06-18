@@ -651,6 +651,16 @@ def create_app(api_key: str, model: str) -> FastAPI:
             "history": history
         }
 
+    # ── CLEAR CHAT HISTORY API ───────────────────────────────
+    @app.post("/api/chat/clear")
+    async def clear_chat_history():
+        system_msg = chatbot.history[0]
+        chatbot.history = [system_msg]
+        return {
+            "success": True,
+            "message": "Chat history cleared successfully."
+        }
+
     # ── STREAMING CHAT ENDPOINT (SSE) ────────────────────────
     @app.post("/chat/stream")
     async def chat_stream(message: str = Form(...), image: UploadFile = File(None)):
