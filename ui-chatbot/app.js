@@ -101,15 +101,48 @@ document.addEventListener('DOMContentLoaded', () => {
     restoreChatFromStorage();
 
     // ══════════════════════════════════════════════
-    //   LAUNCHER — Open / Close
+    //   LAUNCHER — Open / Close (with icon morph)
     // ══════════════════════════════════════════════
+    const launcherIcon = document.querySelector('.launcher-icon');
+
+    function updateLauncherState(isOpen) {
+        if (isOpen) {
+            launcher.classList.add('launcher-active');
+            if (launcherIcon) {
+                launcherIcon.innerHTML = `
+                    <svg class="launcher-icon-svg" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <line x1="6" y1="6" x2="18" y2="18" stroke="#111A35" stroke-width="2.5" stroke-linecap="round"/>
+                        <line x1="18" y1="6" x2="6" y2="18" stroke="#111A35" stroke-width="2.5" stroke-linecap="round"/>
+                    </svg>
+                `;
+            }
+        } else {
+            launcher.classList.remove('launcher-active');
+            if (launcherIcon) {
+                launcherIcon.innerHTML = `
+                    <svg class="launcher-icon-svg" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 21C16.9706 21 21 16.9706 21 12C21 7.02944 16.9706 3 12 3C7.02944 3 3 7.02944 3 12C3 13.4876 3.36093 14.891 4.00473 16.1332L3 21L7.86683 19.9953C9.10896 20.6391 10.5124 21 12 21Z" stroke="#FBC12B" stroke-width="2" stroke-linejoin="round"/>
+                        <circle cx="8" cy="12" r="1.5" fill="#FBC12B" />
+                        <circle cx="12" cy="12" r="1.5" fill="#FBC12B" />
+                        <circle cx="16" cy="12" r="1.5" fill="#FBC12B" />
+                    </svg>
+                `;
+            }
+        }
+    }
+
     launcher.addEventListener('click', () => {
         widget.classList.toggle('hidden');
-        if (!widget.classList.contains('hidden')) {
+        const isOpen = !widget.classList.contains('hidden');
+        updateLauncherState(isOpen);
+        if (isOpen) {
             userInput.focus();
         }
     });
-    closeBtn.addEventListener('click', () => widget.classList.add('hidden'));
+    closeBtn.addEventListener('click', () => {
+        widget.classList.add('hidden');
+        updateLauncherState(false);
+    });
 
     // ══════════════════════════════════════════════
     //   CLEAR CHAT
