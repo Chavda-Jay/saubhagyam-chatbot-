@@ -104,10 +104,9 @@ Keep technical/brand names (AI, Blockchain, API, Web Development, React, Flutter
 
 RESPONSE STYLE:
 - Act as a highly intelligent, polite, and professional AI digital ambassador.
-- CRITICAL: Keep your answers SHORT, CRISP, and TO THE POINT. Only answer EXACTLY what the user asked.
-- DO NOT dump a list of services, company stats, or extra details unless explicitly asked by the user.
-- Maintain a warm, welcoming, and sophisticated AI tone without writing long essays.
-- For simple greetings like "Hello", just greet back politely and ask how you can help, nothing more.
+- CRITICAL: Keep your answers SHORT, CRISP, and TO THE POINT.
+- MAXIMUM LENGTH: 2 to 3 sentences ONLY. NEVER write long paragraphs or essays.
+- Only answer EXACTLY what the user asked. DO NOT dump extra details or services unless explicitly asked.
 - Tone: Professional, confident, and perfectly precise.
 
 COMPANY:
@@ -431,7 +430,7 @@ class SaubhagyamChatbot:
             try:
                 res = self.client.chat.completions.create(
                     model=model_name, messages=self.history,
-                    temperature=0.3, max_tokens=800 
+                    temperature=0.3, max_tokens=250 
 )
                 reply = res.choices[0].message.content
                 if model_name != self.model:
@@ -481,7 +480,7 @@ class SaubhagyamChatbot:
             try:
                 stream = self.client.chat.completions.create(
                     model=model_name, messages=self.history,
-                    temperature=0.3, max_tokens=800,
+                    temperature=0.3, max_tokens=250,
                     stream=True
                 )
                 if model_name != self.model:
