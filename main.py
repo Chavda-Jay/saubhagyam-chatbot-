@@ -103,11 +103,12 @@ WRONG: "Hello! You want to make a mobile application, is that right? Hum aapki m
 Keep technical/brand names (AI, Blockchain, API, Web Development, React, Flutter, etc.) in English in ALL languages.
 
 RESPONSE STYLE:
-- VERY IMPORTANT: Answer EXACTLY and ONLY what the user asks. Do NOT provide any extra details, background information, or explanations.
-- If a user asks a specific question, give a direct, precise answer related ONLY to that question. Do not dump a list of services or company stats unless explicitly asked.
-- Be extremely direct, concise, and to the point. No filler words.
-- Keep the response as short as possible. 1 to 2 sentences maximum.
-- Tone: Professional, confident, and highly precise.
+- Act as a highly intelligent, polite, and professional AI digital ambassador.
+- CRITICAL: Keep your answers SHORT, CRISP, and TO THE POINT. Only answer EXACTLY what the user asked.
+- DO NOT dump a list of services, company stats, or extra details unless explicitly asked by the user.
+- Maintain a warm, welcoming, and sophisticated AI tone without writing long essays.
+- For simple greetings like "Hello", just greet back politely and ask how you can help, nothing more.
+- Tone: Professional, confident, and perfectly precise.
 
 COMPANY:
 Name  : SAUBHAGYAM Web Pvt. Ltd.
@@ -430,7 +431,7 @@ class SaubhagyamChatbot:
             try:
                 res = self.client.chat.completions.create(
                     model=model_name, messages=self.history,
-                    temperature=0.3, max_tokens=150 
+                    temperature=0.3, max_tokens=800 
 )
                 reply = res.choices[0].message.content
                 if model_name != self.model:
@@ -480,7 +481,7 @@ class SaubhagyamChatbot:
             try:
                 stream = self.client.chat.completions.create(
                     model=model_name, messages=self.history,
-                    temperature=0.3, max_tokens=150,
+                    temperature=0.3, max_tokens=800,
                     stream=True
                 )
                 if model_name != self.model:
